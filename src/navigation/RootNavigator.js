@@ -7,6 +7,7 @@ import CargarTransferenciaScreen from '../screens/CargarTransferenciaScreen';
 import ComprobanteScreen from '../screens/ComprobanteScreen';
 import ElegirItemsScreen from '../screens/ElegirItemsScreen';
 import LoginScreen from '../screens/LoginScreen';
+import NotificacionesScreen from '../screens/NotificacionesScreen';
 import RecuperarPasswordScreen from '../screens/RecuperarPasswordScreen';
 import { colors } from '../theme';
 import MainTabs from './MainTabs';
@@ -25,6 +26,7 @@ function AppStack() {
         <Stack.Screen name="Comprobante" component={ComprobanteScreen} options={{ gestureEnabled: false }} />
         <Stack.Screen name="CargarTransferencia" component={CargarTransferenciaScreen} />
         <Stack.Screen name="CambiarPassword" component={CambiarPasswordScreen} />
+        <Stack.Screen name="Notificaciones" component={NotificacionesScreen} />
       </Stack.Navigator>
     </HijoProvider>
   );

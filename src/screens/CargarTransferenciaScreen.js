@@ -141,13 +141,8 @@ export default function CargarTransferenciaScreen({ navigation, route }) {
           tipo: archivo.tipo,
         }),
       });
-      setListo(
-        data.estado_cuota === 'Pagada'
-          ? `Registramos tu transferencia de ${formatMoney(data.importe)}. La cuota quedó pagada.`
-          : `Registramos tu transferencia de ${formatMoney(data.importe)}. Llevás pagado ${formatMoney(
-              data.pagado
-            )} y queda un saldo de ${formatMoney(data.saldo)}.`
-      );
+      // El comprobante queda 'En revisión' hasta que el colegio lo apruebe.
+      setListo(data);
     } catch (e) {
       setError(mensajeError(e));
     } finally {
@@ -162,8 +157,11 @@ export default function CargarTransferenciaScreen({ navigation, route }) {
           <View style={styles.exitoIcono}>
             <Ionicons name="checkmark" size={38} color={colors.blanco} />
           </View>
-          <T v="h1" style={styles.centro}>¡Comprobante enviado!</T>
-          <T v="body" style={[styles.centro, styles.exitoTexto]}>{listo}</T>
+          <T v="h1" style={styles.centro}>¡Listo!</T>
+          <T v="body" style={[styles.centro, styles.exitoTexto]}>Comprobante enviado. El colegio lo va a revisar.</T>
+          <T v="small" style={[styles.centro, styles.exitoDetalle]}>
+            Transferencia de {formatMoney(listo.importe)} · Op. {listo.numero_operacion}
+          </T>
         </View>
         <Button titulo="Volver al inicio" onPress={() => navigation.popToTop()} />
       </Screen>
@@ -314,5 +312,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   exitoTexto: { color: colors.textoSecundario, marginTop: 8 },
+  exitoDetalle: { marginTop: 6 },
   centro: { textAlign: 'center' },
 });

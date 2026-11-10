@@ -9,16 +9,20 @@ export function HijoProvider({ children }) {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
 
-  const cargarHijos = useCallback(async () => {
-    setCargando(true);
-    setError(null);
+  // silencioso: actualiza sin mostrar la carga (por ejemplo, al volver a una pantalla).
+  const cargarHijos = useCallback(async ({ silencioso = false } = {}) => {
+    if (!silencioso) {
+      setCargando(true);
+      setError(null);
+    }
     try {
       const lista = (await apiFetch('/api/familia/hijos')) ?? [];
       setHijos(lista);
       // Mantener el hijo elegido si sigue en la lista; si no, elegir el primero.
       setHijo((actual) => lista.find((h) => h.id === actual?.id) ?? lista[0] ?? null);
+      setError(null);
     } catch (e) {
-      setError(e);
+      if (!silencioso) setError(e);
     } finally {
       setCargando(false);
     }

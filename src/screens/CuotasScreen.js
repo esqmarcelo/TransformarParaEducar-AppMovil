@@ -1,7 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useRef } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { apiFetch } from '../api';
 import Badge from '../components/Badge';
 import Button from '../components/Button';
@@ -14,15 +12,8 @@ import { useAuth } from '../context/AuthContext';
 import { useHijo } from '../context/HijoContext';
 import { formatFecha, formatMoney, formatPeriodo, mesDePeriodo } from '../format';
 import { useApi } from '../hooks/useApi';
-import {
-  facturaIdDe,
-  iconoConcepto,
-  itemsDe,
-  itemsInformados,
-  saldoPendiente,
-  separarCuotas,
-  sumaImportes,
-} from '../pagos';
+import { useRecargarAlVolver } from '../hooks/useRecargarAlVolver';
+import { facturaIdDe, iconoConcepto, itemsDe, itemsInformados, saldoPendiente, separarCuotas } from '../pagos';
 import { colors, fonts, radius } from '../theme';
 
 export default function CuotasScreen({ navigation }) {
@@ -34,17 +25,15 @@ export default function CuotasScreen({ navigation }) {
     { enabled: Boolean(hijo) }
   );
 
-  // Al volver de pagar, actualizar sin mostrar la carga completa.
-  const primeraVez = useRef(true);
-  useFocusEffect(
-    useCallback(() => {
-      if (primeraVez.current) {
-        primeraVez.current = false;
-        return;
-      }
-      recargar({ silencioso: true });
-    }, [recargar])
-  );
+  // GET /api/notificaciones → { notificaciones, noLeidas } (noLeidas llega como texto).
+  const notificaciones = useApi(() => apiFetch('/api/notificaciones'), []);
+  const noLeidas = Number(notificaciones.data?.noLeidas) || 0;
+
+  // Al volver a la pantalla (por ejemplo, después de pagar), actualizar sin la carga completa.
+  useRecargarAlVolver(() => {
+    recargar({ silencioso: true });
+    notificaciones.recargar({ silencioso: true });
+  });
 
   const { proxima, resto } = separarCuotas(data);
 
@@ -53,7 +42,11 @@ export default function CuotasScreen({ navigation }) {
       conTabBar
       subtitulo="Inicio"
       titulo={`Hola, ${user?.nombre ?? ''}`}
-      onRefresh={() => (hijo ? recargar({ silencioso: true }) : recargarHijos())}
+      accion={<BotonNotificaciones noLeidas={noLeidas} onPress={() => navigation.navigate('Notificaciones')} />}
+      onRefresh={() => {
+        notificaciones.recargar({ silencioso: true });
+        return hijo ? recargar({ silencioso: true }) : recargarHijos();
+      }}
       refrescando={refrescando}
     >
       <RequiereHijo>
@@ -75,7 +68,7 @@ export default function CuotasScreen({ navigation }) {
                     onCargarComprobante={() =>
                       navigation.navigate('CargarTransferencia', {
                         facturaId: facturaIdDe(proxima),
-                        importe: sumaImportes(itemsInformados(proxima)),
+                        importe: saldoPendiente(proxima),
                       })
                     }
                   />
@@ -105,14 +98,20 @@ function CuotaDestacada({ cuota, onPagar, onCargarComprobante }) {
   const items = itemsDe(cuota);
   const sinFactura = !facturaIdDe(cuota);
   const hayPendientes = items.some((i) => i.estado === 'Pendiente');
-  // Ya generó la orden de pago de estos ítems pero todavía no cargó la transferencia.
-  const faltaComprobante = !hayPendientes && itemsInformados(cuota).length > 0;
+  const enRevision = cuota.en_revision === true;
+  // Ya generó la orden de pago de estos ítems pero no hay comprobante esperando revisión
+  // (no lo cargó, o se lo rechazaron).
+  const faltaComprobante = !hayPendientes && !enRevision && itemsInformados(cuota).length > 0;
 
   return (
     <View style={styles.destacada}>
       <View style={styles.destacadaArriba}>
         <T v="overline" style={styles.claroSuave}>Próxima cuota</T>
-        <Badge texto={cuota.estado} tono={cuota.estado === 'Vencida' ? 'error' : 'pendiente'} />
+        {enRevision ? (
+          <Badge texto="Pago en revisión" />
+        ) : (
+          <Badge texto={cuota.estado} tono={cuota.estado === 'Vencida' ? 'error' : 'pendiente'} />
+        )}
       </View>
       <T v="h2" style={styles.blanco}>{formatPeriodo(cuota.periodo)}</T>
       <View style={styles.vence}>
@@ -148,7 +147,8 @@ function CuotaDestacada({ cuota, onPagar, onCargarComprobante }) {
           disabled={sinFactura}
           style={styles.pagar}
         />
-      ) : (
+      ) : enRevision && !hayPendientes ? null : (
+        // Con un comprobante en revisión solo se pueden pagar los ítems que siguen pendientes.
         <Button
           titulo="Pagar ítems"
           variante="claro"
@@ -158,6 +158,12 @@ function CuotaDestacada({ cuota, onPagar, onCargarComprobante }) {
           style={styles.pagar}
         />
       )}
+      {enRevision ? (
+        <View style={styles.revision}>
+          <Ionicons name="hourglass-outline" size={18} color={colors.azul} />
+          <T v="label" style={styles.revisionTexto}>El colegio está revisando tu comprobante</T>
+        </View>
+      ) : null}
       {faltaComprobante && !sinFactura ? (
         <T v="small" style={[styles.claroSuave, styles.nota]}>Ya generaste la orden de pago. Falta cargar la transferencia.</T>
       ) : null}
@@ -201,13 +207,67 @@ function FilaCuota({ cuota, ultima }) {
       </View>
       <View style={styles.filaDerecha}>
         <T v="money">{formatMoney(cuota.total)}</T>
-        <Badge texto={cuota.estado} style={styles.filaBadge} />
+        <Badge texto={cuota.en_revision ? 'Pago en revisión' : cuota.estado} style={styles.filaBadge} />
       </View>
     </View>
   );
 }
 
+function BotonNotificaciones({ noLeidas, onPress }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={noLeidas ? `Notificaciones, ${noLeidas} sin leer` : 'Notificaciones'}
+      style={({ pressed }) => [styles.campana, pressed && { opacity: 0.7 }]}
+    >
+      <Ionicons name="notifications-outline" size={22} color={colors.tinta} />
+      {noLeidas > 0 ? (
+        <View style={styles.contador}>
+          <T style={styles.contadorTexto}>{noLeidas > 9 ? '9+' : noLeidas}</T>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
+  campana: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.tarjeta,
+    borderWidth: 1,
+    borderColor: colors.linea,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contador: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 5,
+    borderRadius: 10,
+    backgroundColor: colors.rojo,
+    borderWidth: 2,
+    borderColor: colors.fondo,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contadorTexto: { fontFamily: fonts.bold, fontSize: 11, lineHeight: 13, color: colors.blanco },
+  revision: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+    padding: 12,
+    borderRadius: radius.sm,
+    backgroundColor: colors.azulFondo,
+  },
+  revisionTexto: { flex: 1, color: colors.azul },
   destacada: {
     backgroundColor: colors.verde,
     borderRadius: radius.lg,

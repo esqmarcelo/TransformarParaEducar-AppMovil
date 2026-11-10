@@ -13,6 +13,8 @@ export const colors = {
   ambarFondo: '#FCEBD7',
   rojo: '#B42318',
   rojoFondo: '#FBE4E1',
+  azul: '#1F4FA8',
+  azulFondo: '#E3EBFA',
   tabInactivo: '#B9CCC4',
   blanco: '#FFFFFF',
 };

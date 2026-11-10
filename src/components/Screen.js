@@ -17,10 +17,12 @@ export function useEspacioTabBar() {
  * - conTabBar: deja lugar para la barra flotante (pantallas de pestañas).
  * - atras: muestra el botón para volver (pantallas del stack).
  * - footer: contenido fijo abajo (por ejemplo, total y botón).
+ * - accion: elemento a la derecha del título (por ejemplo, la campana de notificaciones).
  */
 export default function Screen({
   titulo,
   subtitulo,
+  accion,
   atras = false,
   conTabBar = false,
   onRefresh,
@@ -58,8 +60,13 @@ export default function Screen({
             <Ionicons name="chevron-back" size={22} color={colors.tinta} />
           </Pressable>
         ) : null}
-        {subtitulo ? <T v="small" style={styles.subtitulo}>{subtitulo}</T> : null}
-        {titulo ? <T v="h1" style={styles.titulo}>{titulo}</T> : null}
+        <View style={styles.cabecera}>
+          <View style={{ flex: 1 }}>
+            {subtitulo ? <T v="small" style={styles.subtitulo}>{subtitulo}</T> : null}
+            {titulo ? <T v="h1" style={styles.titulo}>{titulo}</T> : null}
+          </View>
+          {accion}
+        </View>
         {children}
       </ScrollView>
       {footer ? <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>{footer}</View> : null}
@@ -81,6 +88,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 14,
   },
+  cabecera: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   subtitulo: { marginBottom: 2 },
   titulo: { marginBottom: 18 },
   footer: {

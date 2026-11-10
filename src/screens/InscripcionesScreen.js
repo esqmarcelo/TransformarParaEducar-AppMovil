@@ -10,6 +10,7 @@ import T from '../components/T';
 import { MAX_DEPORTES } from '../config';
 import { useHijo } from '../context/HijoContext';
 import { useApi } from '../hooks/useApi';
+import { useRecargarAlVolver } from '../hooks/useRecargarAlVolver';
 import { colors, radius } from '../theme';
 
 export default function InscripcionesScreen() {
@@ -19,6 +20,7 @@ export default function InscripcionesScreen() {
     [hijo?.id],
     { enabled: Boolean(hijo) }
   );
+  useRecargarAlVolver(() => recargar({ silencioso: true }));
 
   return (
     <Screen

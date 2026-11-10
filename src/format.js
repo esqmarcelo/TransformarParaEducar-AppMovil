@@ -30,6 +30,13 @@ export function formatFecha(fecha) {
   return `${m[3]}/${m[2]}/${m[1]}`;
 }
 
+/** "2026-11-10 14:05:33" (o ISO) → "10/11/2026 14:05" */
+export function formatFechaHora(fecha) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/.exec(fecha || '');
+  if (!m) return fecha || '';
+  return `${m[3]}/${m[2]}/${m[1]}${m[4] ? ` ${m[4]}:${m[5]}` : ''}`;
+}
+
 export function iniciales(nombre = '', apellido = '') {
   return `${nombre.trim()[0] ?? ''}${apellido.trim()[0] ?? ''}`.toUpperCase() || '?';
 }

@@ -8,11 +8,13 @@ import { Cargando, ErrorView } from '../components/StateViews';
 import T from '../components/T';
 import { useAuth } from '../context/AuthContext';
 import { useHijo } from '../context/HijoContext';
+import { useRecargarAlVolver } from '../hooks/useRecargarAlVolver';
 import { colors, radius } from '../theme';
 
 export default function PerfilScreen({ navigation }) {
   const { user, logout } = useAuth();
   const { hijos, cargando, error, recargar } = useHijo();
+  useRecargarAlVolver(() => recargar({ silencioso: true }));
 
   return (
     <Screen conTabBar titulo="Perfil">

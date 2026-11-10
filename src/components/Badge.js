@@ -6,6 +6,7 @@ const TONOS = {
   ok: { fondo: colors.verdeClaro, texto: colors.verdeOscuro },
   pendiente: { fondo: colors.ambarFondo, texto: colors.ambar },
   error: { fondo: colors.rojoFondo, texto: colors.rojo },
+  revision: { fondo: colors.azulFondo, texto: colors.azul },
   neutro: { fondo: '#EEEBE3', texto: colors.textoSecundario },
   invertido: { fondo: 'rgba(255,255,255,0.18)', texto: colors.blanco },
 };
@@ -19,6 +20,11 @@ const TONO_POR_ESTADO = {
   'Pago parcial': 'pendiente',
   'Pago informado': 'pendiente',
   Vencida: 'error',
+  // Comprobantes de transferencia
+  'En revisión': 'revision',
+  'Pago en revisión': 'revision',
+  Aprobado: 'ok',
+  Rechazado: 'error',
 };
 
 export function tonoDeEstado(estado) {

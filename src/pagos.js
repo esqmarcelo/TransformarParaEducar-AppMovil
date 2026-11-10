@@ -1,7 +1,8 @@
 // Helpers para las respuestas de /api/pagos (backend/routes/pagos.routes.js).
 //
-// GET /hijos/:id/cuotas → [{ id, periodo, vencimiento, total, estado,
+// GET /hijos/:id/cuotas → [{ id, periodo, vencimiento, total, estado, en_revision, pagado, saldo,
 //   factura: { id, numero } | null, items: [{ id, concepto, descripcion, importe, estado }] }]
+//   en_revision: hay un comprobante esperando aprobación; pagado/saldo cuentan solo los aprobados.
 //   estado de cuota: 'Pendiente' | 'Pago parcial' | 'Pagada' | 'Vencida'
 //   estado de ítem:  'Pendiente' | 'Pago informado' | 'Pagado'
 // Los importes llegan como texto (NUMERIC de PostgreSQL): siempre pasar por Number().
@@ -27,20 +28,14 @@ export function itemsDe(cuota) {
   return Array.isArray(cuota?.items) ? cuota.items : [];
 }
 
-const sumar = (items) => items.reduce((s, i) => s + (Number(i.importe) || 0), 0);
-
-/** Lo que falta pagar: los ítems que no están 'Pagado' (incluye los 'Pago informado'). */
+/** Lo que falta pagar según el backend: total menos los comprobantes aprobados. */
 export function saldoPendiente(cuota) {
-  return sumar(itemsDe(cuota).filter((i) => i.estado !== 'Pagado'));
+  return Number(cuota?.saldo) || 0;
 }
 
-/** Ítems con orden de pago generada a los que les falta el comprobante de transferencia. */
+/** Ítems con orden de pago generada (con o sin comprobante cargado). */
 export function itemsInformados(cuota) {
   return itemsDe(cuota).filter((i) => i.estado === 'Pago informado');
-}
-
-export function sumaImportes(items) {
-  return sumar(items);
 }
 
 /** Separa la cuota adeudada más próxima del resto. */
@@ -57,11 +52,15 @@ export function separarCuotas(cuotas) {
 
 /**
  * GET /hijos/:id/deuda → { items: [{ id, periodo, vencimiento, concepto, descripcion, importe, estado }],
- *   total_adeudado }
+ *   total_adeudado, comprobantes: [{ factura, periodo, ...comprobante }] }
  */
 export function normalizarDeuda(data) {
   return {
     items: Array.isArray(data?.items) ? data.items : [],
     total: Number(data?.total_adeudado) || 0,
+    comprobantes: Array.isArray(data?.comprobantes) ? data.comprobantes : [],
   };
 }
+
+// Comprobante (en facturas y deuda): { id, numero_operacion, importe, fecha_transferencia,
+//   fecha_carga, estado: 'En revisión' | 'Aprobado' | 'Rechazado', motivo_rechazo }

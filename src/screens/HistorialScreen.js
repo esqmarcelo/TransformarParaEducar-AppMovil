@@ -13,6 +13,7 @@ import T from '../components/T';
 import { useHijo } from '../context/HijoContext';
 import { esPeriodoValido, formatFecha, formatMoney, formatPeriodo } from '../format';
 import { useApi } from '../hooks/useApi';
+import { useRecargarAlVolver } from '../hooks/useRecargarAlVolver';
 import { iconoConcepto, normalizarDeuda } from '../pagos';
 import { colors, fonts, radius } from '../theme';
 
@@ -47,6 +48,9 @@ export default function HistorialScreen() {
     enabled: Boolean(hijo) && segmento === 'deuda',
   });
   const actual = segmento === 'facturas' ? facturas : deuda;
+
+  // Al volver a la pestaña (por ejemplo, después de cargar un comprobante).
+  useRecargarAlVolver(() => actual.recargar({ silencioso: true }));
 
   return (
     <Screen
@@ -186,19 +190,32 @@ function TarjetaFactura({ factura }) {
         {comprobantes.length === 0 ? (
           <T v="small">Sin comprobantes cargados.</T>
         ) : (
-          comprobantes.map((c, i) => (
-            <View key={c.id ?? i} style={styles.comprobante}>
-              <Ionicons name="swap-horizontal-outline" size={16} color={colors.verde} />
-              <View style={{ flex: 1 }}>
-                <T v="label">Transferencia del {formatFecha(c.fecha_transferencia)}</T>
-                {c.numero_operacion ? <T v="small">Op. {c.numero_operacion}</T> : null}
-              </View>
-              <T v="money" style={styles.comprobanteImporte}>{formatMoney(c.importe)}</T>
-            </View>
-          ))
+          comprobantes.map((c) => <FilaComprobante key={c.id} comprobante={c} />)
         )}
       </View>
     </Card>
+  );
+}
+
+/** Comprobante de transferencia con su estado de revisión y, si se rechazó, el motivo. */
+function FilaComprobante({ comprobante: c, periodo }) {
+  return (
+    <View style={styles.comprobante}>
+      <Ionicons name="swap-horizontal-outline" size={16} color={colors.verde} style={styles.comprobanteIcono} />
+      <View style={{ flex: 1 }}>
+        <T v="label">Transferencia del {formatFecha(c.fecha_transferencia)}</T>
+        <T v="small">
+          {periodo ? `${formatPeriodo(periodo)} · ` : ''}Op. {c.numero_operacion}
+        </T>
+        {c.estado === 'Rechazado' && c.motivo_rechazo ? (
+          <T v="small" style={styles.motivo}>Motivo: {c.motivo_rechazo}</T>
+        ) : null}
+      </View>
+      <View style={styles.comprobanteDerecha}>
+        <T v="money" style={styles.comprobanteImporte}>{formatMoney(c.importe)}</T>
+        <Badge texto={c.estado} style={styles.comprobanteBadge} />
+      </View>
+    </View>
   );
 }
 
@@ -215,7 +232,7 @@ function Deuda({ data, cargando, error, recargar }) {
   if (cargando) return <Cargando />;
   if (error) return <ErrorView error={error} onRetry={recargar} />;
   if (!data) return null;
-  const { items, total } = normalizarDeuda(data);
+  const { items, total, comprobantes } = normalizarDeuda(data);
 
   if (items.length === 0) {
     return <Vacio icono="checkmark-circle-outline" titulo="Sin deuda" texto="No hay ítems adeudados. ¡Está todo al día!" />;
@@ -248,6 +265,17 @@ function Deuda({ data, cargando, error, recargar }) {
           </View>
         ))}
       </Card>
+
+      {comprobantes.length > 0 ? (
+        <>
+          <T v="h3" style={styles.deudaComprobantesTitulo}>Comprobantes de estas cuotas</T>
+          <Card style={styles.deudaComprobantes}>
+            {comprobantes.map((c) => (
+              <FilaComprobante key={c.id} comprobante={c} periodo={c.periodo} />
+            ))}
+          </Card>
+        </>
+      ) : null}
     </>
   );
 }
@@ -273,8 +301,14 @@ const styles = StyleSheet.create({
   facturaDatos: { flexDirection: 'row', gap: 10, marginTop: 14 },
   comprobantes: { marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.linea },
   comprobantesTitulo: { marginBottom: 6 },
-  comprobante: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
+  comprobante: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 8 },
+  comprobanteIcono: { marginTop: 2 },
   comprobanteImporte: { fontSize: 15 },
+  comprobanteDerecha: { alignItems: 'flex-end' },
+  comprobanteBadge: { alignSelf: 'flex-end', marginTop: 4 },
+  motivo: { color: colors.rojo, marginTop: 2 },
+  deudaComprobantesTitulo: { marginTop: 22, marginBottom: 10 },
+  deudaComprobantes: { paddingVertical: 8 },
   deudaTotal: { backgroundColor: colors.ambarFondo, borderRadius: radius.lg, padding: 20, marginBottom: 14 },
   deudaLista: { paddingVertical: 4 },
   deudaItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
